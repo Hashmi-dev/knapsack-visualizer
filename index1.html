@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>0/1 Knapsack Visualization</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: #f9f9f9;
+            padding: 20px;
+            text-align: center;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            border: none;
+            background-color: #4caf50;
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        table {
+            border-collapse: collapse;
+            margin: 0 auto;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        th, td {
+            border: 1px solid #ccc;
+            padding: 10px;
+            width: 50px;
+            height: 50px;
+            text-align: center;
+        }
+
+        th {
+            background-color: #f0f0f0;
+            font-weight: bold;
+        }
+
+        td {
+            background-color: white;
+        }
+
+        .highlight {
+            background-color: #ffd166;
+            animation: pulse 0.5s ease;
+        }
+
+        @keyframes pulse {
+            0% { background-color: #ffe699; }
+            100% { background-color: #ffd166; }
+        }
+
+        .result {
+            margin-top: 20px;
+            font-size: 18px;
+            color: #333;
+        }
+
+        .labels {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧠 0/1 Knapsack Visualizer</h1>
+    <div>
+        <h2>📝 Add Your Items</h2>
+        <label>Weight: <input type="number" id="weightInput" min="1"></label>
+        <label>Value: <input type="number" id="valueInput" min="1"></label>
+        <button onclick="addItem()">Add Item</button>
+    </div>
+
+    <div>
+        <h2>🎯 Capacity</h2>
+        <input type="number" id="capacityInput" placeholder="e.g. 7" min="1">
+    </div>
+
+    <div>
+        <h3>📦 Current Items:</h3>
+        <ul id="itemList"></ul>
+    </div>
+    <button onclick="runKnapsack()">Run Algorithm</button>
+    <div class="result" id="resultBox"></div>
+    <div id="tableContainer"></div>
+
+    <script>
+        let items = [];
+
+        function addItem() {
+            const value = parseInt(document.getElementById('valueInput').value);
+            const weight = parseInt(document.getElementById('weightInput').value);
+            if (isNaN(weight) || isNaN(value) || weight <= 0 || value <= 0) {
+                alert('Please enter valid positive numbers for weight and value.');
+                return;
+            }
+
+            items.push({ weight, value });
+
+            const itemList = document.getElementById('itemList');
+            const li = document.createElement('li');
+            li.textContent = `Item ${items.length}: weight=${weight}, value=${value}`;
+            itemList.appendChild(li);
+            // Reset inputs
+            document.getElementById('weightInput').value = '';
+            document.getElementById('valueInput').value = '';
+        }
+
+        async function runKnapsack() {
+            const capacity = parseInt(document.getElementById('capacityInput').value);
+            if (isNaN(capacity) || capacity <= 0) {
+                alert('Please enter a valid capacity.');
+                return;
+            }
+            if (items.length === 0) {
+                alert('Please add at least one item.');
+                return;
+            }
+
+            const n = items.length;
+            const dp = Array.from({ length: n + 1 }, () =>
+                Array(capacity + 1).fill(0)
+            );
+
+            const tableContainer = document.getElementById('tableContainer');
+            tableContainer.innerHTML = '';
+
+            const table = document.createElement('table');
+
+            // Add header row (capacity labels)
+            const headerRow = document.createElement('tr');
+            const topLeft = document.createElement('th');
+            topLeft.textContent = 'Items ↓ / Cap →';
+            headerRow.appendChild(topLeft);
+
+            for (let w = 0; w <= capacity; w++) {
+                const th = document.createElement('th');
+                th.textContent = w;
+                headerRow.appendChild(th);
+            }
+            table.appendChild(headerRow);
+
+            // Initialize rows
+            const cellElements = [];
+
+            for (let i = 0; i <= n; i++) {
+                const row = document.createElement('tr');
+                const label = document.createElement('th');
+                label.textContent = i === 0 ? '0' : `w:${items[i-1].weight}, v:${items[i-1].value}`;
+                row.appendChild(label);
+                const rowCells = [];
+
+                for (let w = 0; w <= capacity; w++) {
+                    const cell = document.createElement('td');
+                    cell.textContent = '0';
+                    row.appendChild(cell);
+                    rowCells.push(cell);
+                }
+
+                table.appendChild(row);
+                cellElements.push(rowCells);
+            }
+
+            tableContainer.appendChild(table);
+
+            // Fill table with animation
+            for (let i = 1; i <= n; i++) {
+                for (let w = 0; w <= capacity; w++) {
+                    await new Promise(resolve => setTimeout(resolve, 50));
+
+                    if (items[i - 1].weight <= w) {
+                        dp[i][w] = Math.max(
+                            items[i - 1].value + dp[i - 1][w - items[i - 1].weight],
+                            dp[i - 1][w]
+                        );
+                    } else {
+                        dp[i][w] = dp[i - 1][w];
+                    }
+
+                    const cell = cellElements[i][w];
+                    cell.textContent = dp[i][w];
+                    cell.classList.add('highlight');
+
+                    setTimeout(() => {
+                        cell.classList.remove('highlight');
+                    }, 300);
+                }
+            }
+
+            let w = capacity;
+            let selectedItems = [];
+
+            for (let i = n; i > 0; i--) {
+                if (dp[i][w] !== dp[i - 1][w]) {
+                    selectedItems.push(i - 1); // store item index
+                    cellElements[i][w].style.backgroundColor = '#06d6a0'; // green highlight
+                    w -= items[i - 1].weight;
+                }
+            }
+
+            selectedItems.reverse();
+
+            const resultBox = document.getElementById('resultBox');
+            resultBox.innerHTML = `
+                ✅ <strong>Maximum Value:</strong> ${dp[n][capacity]}<br>
+                🧺 <strong>Selected Items:</strong> ${
+                    selectedItems.map(i => `Item ${i + 1} (w:${items[i].weight}, v:${items[i].value})`).join(', ')
+                }
+            `;
+        }
+    </script>
+</body>
+</html>
